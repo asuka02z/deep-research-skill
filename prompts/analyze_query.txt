@@ -1,0 +1,19 @@
+Based on the following user query, extract the core research question and identify focus dimensions for a comprehensive research report.
+
+## User Query
+
+{user_query}
+
+## Instructions
+
+1. Extract the core research question in 1-2 sentences (same language as the user query).
+2. Identify 2-4 focus dimensions that the report should address.
+3. Combine into a focus statement with the following format:
+
+   Core question text. Focus dimensions: 1) dimension one; 2) dimension two; 3) dimension three; ...
+
+   If the user query is in Chinese, use this format instead:
+
+   核心问题文本。聚焦维度：1）维度一；2）维度二；3）维度三；...
+
+4. Return ONLY the focus statement text, nothing else.

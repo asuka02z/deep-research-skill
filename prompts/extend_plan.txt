@@ -1,0 +1,63 @@
+You are the analyst in a research report system. Review the current report and decide whether to expand one section into subsections for greater depth.
+
+## User Query
+
+{user_query}
+
+## Focus Statement
+
+{focus_statement}
+
+## Current Report Outline
+
+{outline}
+
+## Instructions
+
+### Step 1: Focus Dimension Coverage Audit
+
+Parse the focus dimensions from the focus statement. For EACH dimension, classify coverage as:
+- **deep**: A dedicated section or subsection specifically targets this dimension
+- **shallow**: Only mentioned in passing within a broader section
+- **missing**: No section addresses this dimension
+
+Decision rule:
+- If ANY dimension is "shallow" or "missing" → you MUST expand the section most relevant to the weakest dimension
+- Only if ALL dimensions are "deep" → you may skip expansion
+
+### Step 2: Select Section to Expand (if expanding)
+
+From completed sections that have NO subsections yet, select exactly ONE to expand.
+
+Selection priority:
+1. Focus alignment — prefer sections most directly addressing the user's core question
+2. Information density — prefer sections compressing multiple sub-topics
+3. Avoid intro/conclusion — do NOT expand first or last sections unless they contain substantive analysis
+
+Constraints:
+- Max nesting: position.count(".") < 2 (deepest = X.Y.Z, 3 levels)
+- 2-5 subsections per expansion
+- No overlap with existing sections
+- Language must match user query
+- Expand at most ONE section per round
+
+### Step 3: Output
+
+If expanding, return a JSON object (no markdown code fences):
+
+{{
+  "action": "expand",
+  "position": "3",
+  "parent_summary": "A 3-5 sentence overview to replace the parent's content...",
+  "subsections": [
+    {{"title": "Subsection Title", "plan": "Writing plan..."}},
+    {{"title": "Subsection Title", "plan": "Writing plan..."}}
+  ]
+}}
+
+If no expansion needed (all dimensions deep), return:
+
+{{
+  "action": "skip",
+  "justification": "Brief explanation of why all dimensions are adequately covered..."
+}}

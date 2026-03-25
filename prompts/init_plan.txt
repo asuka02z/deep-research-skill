@@ -1,0 +1,34 @@
+Based on the user query, focus statement, and retrieved background information, generate a report outline.
+
+## User Query
+
+{user_query}
+
+## Focus Statement
+
+{focus_statement}
+
+## Retrieved Background Information
+
+{retrieved_info}
+
+## Instructions
+
+1. Generate a report outline structured around the focus dimensions in the focus statement.
+2. The outline must include:
+   - A report title
+   - 3-12 top-level sections, each with a `title` and a `plan` (brief writing instruction)
+3. CRITICAL: Generate ONLY top-level sections. Do NOT create subsections — those are added later.
+4. Language must match the user query.
+
+## Output Format
+
+Return a JSON object with this exact structure (no markdown code fences):
+
+{{
+  "title": "Report Title",
+  "sections": [
+    {{"position": "1", "title": "Section Title", "plan": "Brief writing plan...", "completed": false}},
+    {{"position": "2", "title": "Section Title", "plan": "Brief writing plan...", "completed": false}}
+  ]
+}}

@@ -1,0 +1,8 @@
+The research report has been completed and saved.
+
+Report path: {report_path}
+Total sections: {total_sections}
+Total steps: {total_steps}
+Total citations: {total_citations}
+
+Please present the report to the user and inform them where it is saved.
