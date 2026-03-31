@@ -21,6 +21,7 @@ from .validation import validate_init_plan, validate_extend_plan
 
 
 _MAX_SEARCH_BATCH = 4
+_SECTIONS_PER_AGENT = 5
 
 
 class Engine:
@@ -49,7 +50,6 @@ class Engine:
         """Process completion data, transition state, return next action.
 
         The *data* dict carries results from the agent:
-        - analyze_query: {"focus_statement": "..."}
         - init_plan:     {"survey": {...}}
         - extend_plan:   {"action": "expand"|"skip", ...}
         - search:        (no data needed — Python reads retrieved/ files)
@@ -60,10 +60,7 @@ class Engine:
 
         # -- Process completion data per state ----------------------------
 
-        if current == "analyze_query" and data:
-            state["focus_statement"] = data.get("focus_statement", "")
-
-        elif current == "init_plan":
+        if current == "init_plan":
             if not data:
                 state = transition(state, "parse_failed")
                 self.store.save(state)
@@ -167,7 +164,6 @@ class Engine:
             return self._finalize(state)
 
         builder = {
-            "analyze_query": self._action_analyze_query,
             "search": self._action_search,
             "init_plan": self._action_init_plan,
             "write": self._action_write,
@@ -179,71 +175,98 @@ class Engine:
 
         return builder(state)
 
-    def _action_analyze_query(self, state: dict) -> Dict[str, Any]:
-        prompt = render_template(
-            "analyze_query.txt",
-            user_query=state["user_query"],
-        )
-        return {
-            "done": False,
-            "state": "analyze_query",
-            "step": state["step"],
-            "action": "direct",
-            "prompt": prompt,
-            "on_complete": {
-                "trigger": "focus_extracted",
-                "data_spec": {"focus_statement": "<extracted focus statement text>"},
-            },
-        }
-
     def _action_search(self, state: dict) -> Dict[str, Any]:
         cursor = state.get("cursor", "outline")
 
         if cursor == "outline":
-            positions = ["outline"]
+            # Global search mode: single subagent, broad search + summary
+            output_files = (
+                f"- Passages output file: {self.work_dir / 'retrieved' / 'outline.txt'}\n"
+                f"- Summary output file: {self.work_dir / 'retrieved' / 'global_summary.txt'}"
+            )
+            prompt = render_template(
+                "search.txt",
+                work_dir=str(self.work_dir),
+                user_query=state["user_query"],
+                cursor="outline",
+                output_files=output_files,
+                section_context="",
+                global_summary_context="",
+                outline=self._format_outline(state),
+            )
+            tasks = [{
+                "description": "deep-research: global search",
+                "prompt": prompt,
+            }]
+            trigger = "outline_searched"
         else:
+            # Section search mode: multi-section batching
             positions = [
                 e["position"]
                 for e in state.get("survey", {}).get("sections", [])
                 if not e.get("completed", False)
                    and not (self.work_dir / "retrieved" / f"{e['position']}.txt").exists()
             ]
-            positions = positions[:_MAX_SEARCH_BATCH]
 
-        if not positions:
-            return {
-                "done": True, "state": "search", "action": "finalize",
-                "error": "No sections to search — survey is empty or all sections already have retrieved data.",
-            }
+            if not positions:
+                return {
+                    "done": True, "state": "search", "action": "finalize",
+                    "error": "No sections to search — survey is empty or all sections already have retrieved data.",
+                }
 
-        tasks = []
-        for pos in positions:
-            section_context = ""
-            if pos != "outline":
-                section = self._get_section(state, pos)
-                if section:
-                    section_context = (
-                        f"- Section to search for:\n"
-                        f"  - Title: {section.get('title', '')}\n"
-                        f"  - Plan: {section.get('plan', '')}\n"
+            global_summary = self._read_global_summary()
+            global_summary_context = (
+                f"## Global Research Summary (already collected)\n\n{global_summary}"
+                if global_summary else ""
+            )
+
+            # Group positions into batches of _SECTIONS_PER_AGENT
+            groups = [
+                positions[i:i + _SECTIONS_PER_AGENT]
+                for i in range(0, len(positions), _SECTIONS_PER_AGENT)
+            ]
+            groups = groups[:_MAX_SEARCH_BATCH]
+
+            tasks = []
+            for group in groups:
+                section_lines = []
+                output_file_lines = []
+                for pos in group:
+                    section = self._get_section(state, pos)
+                    if section:
+                        section_lines.append(
+                            f"- Section {pos}:\n"
+                            f"  - Title: {section.get('title', '')}\n"
+                            f"  - Plan: {section.get('plan', '')}\n"
+                            f"  - Output: retrieved/{pos}.txt"
+                        )
+                    output_file_lines.append(
+                        f"- Output file for section {pos}: "
+                        f"{self.work_dir / 'retrieved' / f'{pos}.txt'}"
                     )
 
-            prompt = render_template(
-                "search.txt",
-                work_dir=str(self.work_dir),
-                output_file=str(self.work_dir / "retrieved" / f"{pos}.txt"),
-                user_query=state["user_query"],
-                focus_statement=state.get("focus_statement", ""),
-                cursor=pos,
-                section_context=section_context,
-                outline=self._format_outline(state),
-            )
-            tasks.append({
-                "description": f"deep-research: search {pos}",
-                "prompt": prompt,
-            })
+                section_context = (
+                    "- Sections to search for:\n" + "\n".join(section_lines)
+                )
+                output_files = "\n".join(output_file_lines)
 
-        trigger = "outline_searched" if cursor == "outline" else "sections_searched"
+                prompt = render_template(
+                    "search.txt",
+                    work_dir=str(self.work_dir),
+                    user_query=state["user_query"],
+                    cursor=", ".join(group),
+                    output_files=output_files,
+                    section_context=section_context,
+                    global_summary_context=global_summary_context,
+                    outline=self._format_outline(state),
+                )
+                label = ", ".join(group)
+                tasks.append({
+                    "description": f"deep-research: search sections [{label}]",
+                    "prompt": prompt,
+                })
+
+            trigger = "sections_searched"
 
         return {
             "done": False,
@@ -258,13 +281,14 @@ class Engine:
         }
 
     def _action_init_plan(self, state: dict) -> Dict[str, Any]:
-        retrieved_info = self._read_retrieved("outline")
+        global_summary = self._read_global_summary()
+        passage_index = self._build_passage_index("outline")
 
         prompt = render_template(
             "init_plan.txt",
             user_query=state["user_query"],
-            focus_statement=state.get("focus_statement", ""),
-            retrieved_info=retrieved_info,
+            global_summary=global_summary,
+            passage_index=passage_index,
         )
         return {
             "done": False,
@@ -301,10 +325,10 @@ class Engine:
             "write.txt",
             work_dir=str(self.work_dir),
             user_query=state["user_query"],
-            focus_statement=state.get("focus_statement", ""),
             step=state["step"],
             pending_sections="\n".join(pending_lines),
             outline=self._format_outline(state),
+            style_guide=state.get("survey", {}).get("style_guide", ""),
         )
         return {
             "done": False,
@@ -325,7 +349,6 @@ class Engine:
         prompt = render_template(
             "extend_plan.txt",
             user_query=state["user_query"],
-            focus_statement=state.get("focus_statement", ""),
             outline=self._format_outline(state, include_status=True),
         )
         return {
@@ -416,6 +439,28 @@ class Engine:
             return ""
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
+
+    def _read_global_summary(self) -> str:
+        """Read the global summary file, return content or empty string."""
+        path = self.work_dir / "retrieved" / "global_summary.txt"
+        if not path.exists():
+            return ""
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+
+    def _build_passage_index(self, position: str) -> str:
+        """Build a title/URL index from a retrieved file (no full text)."""
+        from .passage import parse_passages
+        raw = self._read_retrieved(position)
+        if not raw:
+            return "No passages available."
+        passages = parse_passages(raw)
+        lines = []
+        for i, p in enumerate(passages, 1):
+            title = p.title or "(untitled)"
+            url = p.url or "(no URL)"
+            lines.append(f"{i}. {title} — {url}")
+        return "\n".join(lines) if lines else "No passages available."
 
     def _searched_positions(self, state: dict) -> List[str]:
         """Determine which positions were just searched (have retrieved/ files)."""

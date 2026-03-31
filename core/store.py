@@ -15,8 +15,7 @@ from typing import Any, Dict
 
 _INITIAL_STATE = {
     "user_query": "",
-    "focus_statement": "",
-    "state": "analyze_query",
+    "state": "search",
     "cursor": "outline",
     "step": 0,
     "extend_time": 0,

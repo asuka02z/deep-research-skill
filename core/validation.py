@@ -17,8 +17,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 def validate_search_keywords(keywords: List[str], user_query: str = "") -> Tuple[bool, str]:
     if not isinstance(keywords, list):
         return False, "keywords must be a list"
-    if not (1 <= len(keywords) <= 5):
-        return False, f"keywords length must be 1-5, got {len(keywords)}"
+    if not (1 <= len(keywords) <= 8):
+        return False, f"keywords length must be 1-8, got {len(keywords)}"
     for kw in keywords:
         if not isinstance(kw, str) or not kw.strip():
             return False, f"each keyword must be a non-empty string, got {kw!r}"
@@ -37,8 +37,8 @@ def validate_init_plan(survey: Dict[str, Any], user_query: str = "") -> Tuple[bo
     sections = survey.get("sections", [])
     if not sections:
         return False, "sections list is empty"
-    if not (3 <= len(sections) <= 12):
-        return False, f"section count must be 3-12, got {len(sections)}"
+    if not (3 <= len(sections) <= 30):
+        return False, f"section count must be 3-30, got {len(sections)}"
 
     for s in sections:
         if not isinstance(s, dict):
@@ -47,10 +47,6 @@ def validate_init_plan(survey: Dict[str, Any], user_query: str = "") -> Tuple[bo
             return False, f"section missing title: {s}"
         if not s.get("plan", "").strip():
             return False, f"section missing plan: {s}"
-        pos = s.get("position", "")
-        if "." in str(pos):
-            return False, f"init_plan must only have top-level positions, got {pos!r}"
-
     return True, "ok"
 
 
@@ -123,8 +119,6 @@ def validate_write_content(
         return False, "content must not contain literal 'bibkey'"
 
     citations = re.findall(r"\[\[(.+?)\]\]", content)
-    if not citations:
-        return False, "content must contain at least one [[textidN]] citation"
 
     citation_count = len(citations)
     if citation_count > 12:

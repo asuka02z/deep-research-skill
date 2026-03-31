@@ -47,9 +47,6 @@ def _has_unsearched_positions(state: dict) -> bool:
 TransitionFn = Callable[[dict], Tuple[str, dict]]
 
 TRANSITIONS: Dict[Tuple[str, str], TransitionFn] = {
-    ("analyze_query", "focus_extracted"):
-        lambda s: ("search", {"cursor": "outline"}),
-
     ("search", "outline_searched"):
         lambda s: ("init_plan", {}),
 

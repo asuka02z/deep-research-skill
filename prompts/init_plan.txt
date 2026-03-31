@@ -1,25 +1,49 @@
-Based on the user query, focus statement, and retrieved background information, generate a report outline.
+Based on the user query and research summary, generate a report outline.
 
 ## User Query
 
 {user_query}
 
-## Focus Statement
+## Global Research Summary
 
-{focus_statement}
+{global_summary}
 
-## Retrieved Background Information
+## Source Index
 
-{retrieved_info}
+{passage_index}
 
 ## Instructions
 
-1. Generate a report outline structured around the focus dimensions in the focus statement.
-2. The outline must include:
+### Step 1: Determine the organization strategy
+
+Before designing sections, identify the "natural unit of analysis" in the user query — the core objects, entities, or stages that the report should be structured around. Examples of natural units: individual companies, research groups, technologies, process stages, sub-problems.
+
+Choose an organization strategy that best serves the user's intent, then state it in the `plan` of the first section or the title structure itself.
+
+### Step 2: Generate a style guide
+
+Based on the nature of the user query, write a short `style_guide` (100-200 characters) that will guide the writing phase. Consider:
+- The query type (comparison, survey, consulting, technical deep-dive, data-driven analysis, etc.)
+- Recommended tone (analytical, advisory, academic, practical, etc.)
+- Presentation preferences (table density, use of lists, depth of analysis, emphasis on data vs. narrative)
+- Language must match the user query.
+
+### Step 3: Design the outline
+
+1. Reference both the global research summary and the source index as inputs.
+2. Reference the source index to understand the breadth of available sources, but do NOT try to read individual passages.
+3. Generate a report outline that:
+   - Follows the organization strategy you chose in Step 1
+   - Addresses all key aspects of the user query
+   - Leverages the key findings and entities identified in the summary
+   - Accounts for information gaps noted in the summary (sections targeting gaps will get additional search later)
+4. The outline must include:
    - A report title
-   - 3-12 top-level sections, each with a `title` and a `plan` (brief writing instruction)
-3. CRITICAL: Generate ONLY top-level sections. Do NOT create subsections — those are added later.
-4. Language must match the user query.
+   - 3-15 top-level sections, each with a `title` and a `plan`
+   - The `plan` should include both the writing instruction AND a suggested presentation format
+     when appropriate (e.g. "use comparison table for metrics", "use ranked list",
+     "use timeline structure", "use pros/cons format")
+5. Language must match the user query.
 
 ## Output Format
 
@@ -27,8 +51,9 @@ Return a JSON object with this exact structure (no markdown code fences):
 
 {{
   "title": "Report Title",
+  "style_guide": "A short style guide for the writing phase...",
   "sections": [
-    {{"position": "1", "title": "Section Title", "plan": "Brief writing plan...", "completed": false}},
-    {{"position": "2", "title": "Section Title", "plan": "Brief writing plan...", "completed": false}}
+    {{"position": "1", "title": "Section Title", "plan": "Brief writing plan with format suggestion...", "completed": false}},
+    {{"position": "2", "title": "Section Title", "plan": "Brief writing plan with format suggestion...", "completed": false}}
   ]
 }}

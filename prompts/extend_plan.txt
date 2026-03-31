@@ -4,26 +4,22 @@ You are the analyst in a research report system. Review the current report and d
 
 {user_query}
 
-## Focus Statement
-
-{focus_statement}
-
 ## Current Report Outline
 
 {outline}
 
 ## Instructions
 
-### Step 1: Focus Dimension Coverage Audit
+### Step 1: Coverage Audit
 
-Parse the focus dimensions from the focus statement. For EACH dimension, classify coverage as:
-- **deep**: A dedicated section or subsection specifically targets this dimension
+Identify the key dimensions and requirements from the user query. For EACH, classify coverage as:
+- **deep**: A dedicated section or subsection specifically targets this aspect
 - **shallow**: Only mentioned in passing within a broader section
-- **missing**: No section addresses this dimension
+- **missing**: No section addresses this aspect
 
 Decision rule:
-- If ANY dimension is "shallow" or "missing" → you MUST expand the section most relevant to the weakest dimension
-- Only if ALL dimensions are "deep" → you may skip expansion
+- If ANY aspect is "shallow" or "missing" → you MUST expand the section most relevant to the weakest aspect
+- Only if ALL aspects are "deep" → you may skip expansion
 
 ### Step 2: Select Section to Expand (if expanding)
 
@@ -55,9 +51,9 @@ If expanding, return a JSON object (no markdown code fences):
   ]
 }}
 
-If no expansion needed (all dimensions deep), return:
+If no expansion needed (all aspects deep), return:
 
 {{
   "action": "skip",
-  "justification": "Brief explanation of why all dimensions are adequately covered..."
+  "justification": "Brief explanation of why all aspects are adequately covered..."
 }}
